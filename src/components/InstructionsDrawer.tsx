@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Info, ChevronRight } from 'lucide-react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter } from '@/components/ui/drawer';
+import { Info, ChevronRight, X } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 
 const InstructionsDrawer = () => {
@@ -73,10 +73,12 @@ const InstructionsDrawer = () => {
           </div>
         </div>
         <DrawerFooter>
-          <Button variant="outline" className="w-full">
-            <ChevronRight className="mr-2 h-4 w-4" />
-            Close Instructions
-          </Button>
+          <DrawerClose asChild>
+            <Button variant="outline" className="w-full">
+              <X className="mr-2 h-4 w-4" />
+              Close Instructions
+            </Button>
+          </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

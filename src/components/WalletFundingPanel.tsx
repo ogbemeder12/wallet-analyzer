@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Loader2, RefreshCw, SparklesIcon, AlertTriangle, InfoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,11 +40,9 @@ const WalletFundingPanel: React.FC<WalletFundingPanelProps> = ({
     setError(null);
     
     try {
-      // Try to use enhancedAnalysis first if available
       if (enhancedAnalysis && !force) {
         console.log("Using enhanced analysis from props:", enhancedAnalysis);
         
-        // Validate the enhancedAnalysis to ensure all required fields exist
         const validatedAnalysis = {
           ...enhancedAnalysis,
           walletAddress: enhancedAnalysis.walletAddress || walletAddress,
@@ -58,19 +55,15 @@ const WalletFundingPanel: React.FC<WalletFundingPanelProps> = ({
         
         setAnalysis(validatedAnalysis);
       } else {
-        // Otherwise calculate from scratch
         console.log("Calculating funding analysis from scratch");
         
-        // Try to get from Helius API first
         let result = await getFundingAnalytics(walletAddress);
         
-        // If Helius fails, fall back to local calculation with a small limit
         if (!result) {
-          result = await analyzeFundingHistory(walletAddress, 25); // Reduced from 100
+          result = await analyzeFundingHistory(walletAddress, 25);
         }
         
         if (result) {
-          // Ensure all numeric values are valid
           const validatedResult = {
             ...result,
             totalInflow: isNaN(result.totalInflow) ? 0 : result.totalInflow,
@@ -83,7 +76,6 @@ const WalletFundingPanel: React.FC<WalletFundingPanelProps> = ({
           setAnalysis(validatedResult);
           console.log("Calculated analysis with totals - Inflow:", validatedResult.totalInflow, "Outflow:", validatedResult.totalOutflow);
         } else {
-          // Create fallback empty data structure
           setAnalysis({
             walletAddress,
             topSources: [],
@@ -103,7 +95,6 @@ const WalletFundingPanel: React.FC<WalletFundingPanelProps> = ({
       setError('Failed to analyze wallet funding. Please try again later.');
       toast.error("Failed to analyze wallet funding");
       
-      // Create fallback empty data structure on error
       setAnalysis({
         walletAddress,
         topSources: [],
@@ -118,157 +109,17 @@ const WalletFundingPanel: React.FC<WalletFundingPanelProps> = ({
   };
 
   const performAiAnalysis = async () => {
-    if (!walletAddress) return;
-
-    setIsAiAnalyzing(true);
-    setAiError(null);
-    setIsFailover(false);
-    
-    try {
-      const inflows = transactions.filter(tx => 
-        tx.parsedInfo?.receiver === walletAddress && tx.parsedInfo?.amount
-      );
-      
-      const outflows = transactions.filter(tx => 
-        tx.parsedInfo?.sender === walletAddress && tx.parsedInfo?.amount
-      );
-      
-      const totalInflow = inflows.reduce((sum, tx) => sum + (tx.parsedInfo?.amount || 0), 0);
-      const totalOutflow = outflows.reduce((sum, tx) => sum + (tx.parsedInfo?.amount || 0), 0);
-      const netBalance = totalInflow - totalOutflow;
-      
-      const knownEntities = await getKnownEntities(walletAddress, transactions);
-      
-      const entityData = {
-        knownEntities,
-        interactionCount: transactions.length
-      };
-
-      console.log("Sending to analyze-wallet edge function:", {
-        walletAddress,
-        transactionCount: transactions.length,
-        entityData
-      });
-
-      const response = await withRetry(() => 
-        supabase.functions.invoke('analyze-wallet', {
-          body: JSON.stringify({
-            walletAddress,
-            transactions: transactions.slice(0, 50),
-            fundingData: analysis,
-            entityData
-          })
-        }),
-        { maxRetries: 5, initialDelayMs: 1000, maxDelayMs: 10000, backoffFactor: 2 }
-      );
-
-      if (!response || typeof response !== 'object') {
-        throw new Error("Invalid response from edge function");
-      }
-      
-      const responseError = response && typeof response === 'object' && 'error' in response
-        ? response.error
-        : null;
-
-      if (responseError) {
-        console.error('Edge function error:', responseError);
-        throw new Error(typeof responseError === 'string' ? responseError : 'Unknown edge function error');
-      }
-
-      const data = response && typeof response === 'object' && 'data' in response 
-        ? response.data 
-        : {};
-      
-      console.log("Edge function response:", data);
-
-      if (!data || typeof data !== 'object') {
-        throw new Error("No data returned from edge function");
-      }
-
-      if (data && typeof data === 'object' && 'aiAnalysis' in data && typeof data.aiAnalysis === 'string' && data.aiAnalysis.trim().length > 0) {
-        setAiAnalysis(data.aiAnalysis);
-        
-        if (data && typeof data === 'object' && 'fundingData' in data) {
-          setAnalysis(data.fundingData as WalletFundingAnalysis);
-          console.log("Updated funding data from AI analysis:", data.fundingData);
-        }
-        
-        if (data && typeof data === 'object' && 'isFailover' in data && data.isFailover === true) {
-          setIsFailover(true);
-          if (data && typeof data === 'object' && 'error' in data) {
-            setAiError(String(data.error));
-          }
-          toast.warning("Using fallback analysis - AI service unavailable");
-        } else {
-          toast.success("AI Analysis Complete");
-        }
-      } else if (data && typeof data === 'object' && 'fallbackAnalysis' in data && typeof data.fallbackAnalysis === 'string' && data.fallbackAnalysis.trim().length > 0) {
-        setAiAnalysis(data.fallbackAnalysis as string);
-        setIsFailover(true);
-        if (data && typeof data === 'object' && 'error' in data) {
-          setAiError(String(data.error));
-        }
-        toast.warning("Using fallback analysis - AI service unavailable");
-      } else if (data && typeof data === 'object' && 'error' in data) {
-        throw new Error(String(data.error));
-      } else {
-        const fallbackText = `
-## Basic Wallet Analysis (Error Recovery Mode)
-
-This is a simple fallback analysis since we couldn't generate a full AI analysis.
-
-**Wallet Address**: ${walletAddress}
-**Transaction Count**: ${transactions.length}
-**Total Inflow**: ${analysis?.totalInflow.toFixed(2) || 'Unknown'} SOL
-**Total Outflow**: ${analysis?.totalOutflow.toFixed(2) || 'Unknown'} SOL
-**Net Balance**: ${analysis?.netBalance.toFixed(2) || 'Unknown'} SOL
-
-Please try again later when our AI service is available.
-        `;
-        
-        setAiAnalysis(fallbackText);
-        setIsFailover(true);
-      }
-    } catch (err) {
-      console.error('AI Analysis Error:', err);
-      let errorMessage = `Failed to generate AI analysis: ${err instanceof Error ? err.message : String(err)}`;
-      
-      if (typeof err === 'object' && err !== null) {
-        const errObj = err as any;
-        if (errObj.message && errObj.message.includes('quota exceeded')) {
-          errorMessage = "OpenAI API quota has been exceeded. Please try again later or update your API key.";
-        }
-      }
-      
-      setAiError(errorMessage);
-      toast.error("Failed to generate AI analysis");
-      
-      const fallbackText = `
-## Basic Wallet Analysis (Error Recovery Mode)
-
-This is a simple fallback analysis since we couldn't generate a full AI analysis.
-
-**Wallet Address**: ${walletAddress}
-**Transaction Count**: ${transactions.length}
-**Total Inflow**: ${analysis?.totalInflow.toFixed(2) || 'Unknown'} SOL
-**Total Outflow**: ${analysis?.totalOutflow.toFixed(2) || 'Unknown'} SOL
-**Net Balance**: ${analysis?.netBalance.toFixed(2) || 'Unknown'} SOL
-
-Please try again later when our AI service is available.
-        `;
-      
-      setAiAnalysis(fallbackText);
-      setIsFailover(true);
-    } finally {
-      setIsAiAnalyzing(false);
-    }
+    toast.info("AI Insights", {
+      description: "Coming Soon! We're working on bringing advanced AI-powered wallet insights.",
+      icon: <SparklesIcon className="text-[#8B5CF6]" />,
+      duration: 3000
+    });
   };
   
   useEffect(() => {
     if (enhancedAnalysis) {
       console.log("Setting analysis from enhanced data:", enhancedAnalysis);
       
-      // Ensure all numeric values are valid in the enhanced analysis
       const validatedAnalysis = {
         ...enhancedAnalysis,
         walletAddress: enhancedAnalysis.walletAddress || walletAddress,
@@ -285,7 +136,6 @@ Please try again later when our AI service is available.
     }
   }, [walletAddress, enhancedAnalysis]);
   
-  // Always display something, even if loading
   if (isLoading && !analysis) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[200px] py-10">
@@ -304,7 +154,6 @@ Please try again later when our AI service is available.
     );
   }
   
-  // Derive analysis from transactions when no analysis is available
   const derivedAnalysis = !analysis && transactions.length > 0 ? {
     walletAddress,
     topSources: [],
@@ -332,16 +181,15 @@ Please try again later when our AI service is available.
         return {
           timestamp: tx.blockTime || 0,
           amount: tx.parsedInfo?.amount || 0,
-          balance: 0, // Will calculate running balance later
+          balance: 0,
           source: isDeposit ? tx.parsedInfo?.sender : tx.parsedInfo?.receiver,
           isDeposit,
           transactionSignature: tx.signature,
-          rawData: tx.rawData // Include raw transaction data if available
+          rawData: tx.rawData
         };
       })
   } : analysis;
   
-  // Ensure we always have a valid analysis object, even if it's empty
   const finalAnalysis = derivedAnalysis || {
     walletAddress,
     topSources: [],
@@ -354,7 +202,6 @@ Please try again later when our AI service is available.
   if (finalAnalysis && finalAnalysis.netBalance === 0) {
     finalAnalysis.netBalance = finalAnalysis.totalInflow - finalAnalysis.totalOutflow;
     
-    // Calculate running balance for timeline data
     let runningBalance = 0;
     if (finalAnalysis.timelineData) {
       finalAnalysis.timelineData.sort((a, b) => a.timestamp - b.timestamp);
@@ -368,10 +215,6 @@ Please try again later when our AI service is available.
       });
     }
   }
-  
-  console.log("Final analysis data:", finalAnalysis);
-  console.log("Final funding totals - Inflow:", finalAnalysis.totalInflow, "Outflow:", finalAnalysis.totalOutflow);
-
   
   return (
     <TooltipProvider>
@@ -410,63 +253,6 @@ Please try again later when our AI service is available.
             <FundingTimeline analysis={finalAnalysis} onSelectTransaction={onViewDetails} />
           </div>
         </div>
-
-        {aiError && (
-          <div className="glass-card p-5 rounded-lg mt-6 border-red-500/20 bg-red-500/5">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle size={20} className="text-red-500" />
-              <h3 className="text-lg font-medium text-red-500">AI Analysis Error</h3>
-            </div>
-            <p className="text-muted-foreground">{aiError}</p>
-            
-            {aiError.includes('OpenAI API quota') && (
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                <h4 className="font-medium flex items-center gap-1">
-                  <InfoIcon size={16} className="text-amber-500" />
-                  <span className="text-amber-400">Quota Exceeded</span>
-                </h4>
-                <p className="text-sm text-muted-foreground mt-1">
-                  The OpenAI API key has reached its usage limit. This typically happens when you've used all the free credits
-                  or exceeded your payment plan's limit. If you're the administrator, you may need to update your OpenAI billing
-                  plan or wait for the quota to reset.
-                </p>
-              </div>
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={performAiAnalysis}
-              className="mt-4"
-            >
-              Try Again
-            </Button>
-          </div>
-        )}
-
-        {aiAnalysis && !aiError && (
-          <div className={`glass-card p-5 rounded-lg mt-6 ${isFailover ? 'border-amber-500/20 bg-amber-500/5' : ''}`}>
-            <h3 className="text-lg font-medium mb-4 flex items-center">
-              <SparklesIcon size={20} className={`mr-2 ${isFailover ? 'text-amber-500' : 'text-primary'}`} />
-              {isFailover ? 'Fallback Analysis (AI Service Unavailable)' : 'AI-Powered Wallet Insights'}
-            </h3>
-            
-            {isFailover && (
-              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  Our AI service is currently unavailable. This is a simplified analysis based on the available data.
-                  Please try again later for a more comprehensive analysis.
-                </p>
-              </div>
-            )}
-            
-            <div className="prose prose-invert max-w-none">
-              {aiAnalysis.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-muted-foreground mb-4">{paragraph}</p>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </TooltipProvider>
   );

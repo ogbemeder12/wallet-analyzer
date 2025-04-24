@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { SearchCode, AlertTriangle, PieChart, Network, ArrowUpDown, Wallet, History, BookKey, Zap, Database, ShieldAlert } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +31,8 @@ const Index = () => {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isWalletAddress, setIsWalletAddress] = useState<boolean>(true);
   const [analysisInProgress, setAnalysisInProgress] = useState<boolean>(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const isCancelledRef = useRef(false);
 
   useEffect(() => {
     const savedInput = localStorage.getItem('lastSearchInput');
@@ -39,18 +41,38 @@ const Index = () => {
     }
   }, []);
 
-  const fetchTransactionHistory = async (address: string) => {
+  const handleCancelSearch = () => {
+    isCancelledRef.current = true;
+    if (abortController) {
+      abortController.abort();
+    }
+    setIsLoading(false);
+    setIsLoadingTransactions(false);
+    setAnalysisInProgress(false);
+
+    toast('Search canceled', {
+      description: 'The ongoing search was canceled by the user.',
+      icon: <AlertTriangle className="h-4 w-4" />,
+      duration: 2500,
+    });
+  };
+
+  const fetchTransactionHistory = async (address: string, providedAbortController?: AbortController) => {
     setIsLoadingTransactions(true);
-    
+    const controller = providedAbortController || new AbortController();
+    setAbortController(controller);
+
     try {
       toast.info('Fetching transactions...', {
         description: 'This may take a moment as we retrieve historical data.',
         icon: <History className="h-4 w-4" />,
         duration: 5000,
       });
-      
+
       const txList = await getTransactions(address, 100);
-      
+
+      if (controller.signal.aborted || isCancelledRef.current) return;
+
       if (txList.length === 0) {
         toast.info('No transactions found', {
           description: 'No transactions were found for this address in the past 6 months.',
@@ -59,96 +81,109 @@ const Index = () => {
         setIsLoadingTransactions(false);
         return;
       }
-      
+
       toast.info(`Loading transaction details for ${txList.length} transactions...`, {
         duration: 5000,
       });
-      
-      const batchSize = 5; // Process 5 transactions at a time (per batch)
+
+      const batchSize = 5;
       let processedTransactions: EnrichedTransaction[] = [];
-      
+
       for (let i = 0; i < txList.length; i += batchSize) {
+        if (controller.signal.aborted || isCancelledRef.current) break;
+
         const batch = txList.slice(i, i + batchSize);
-        
-        // Use our withRetry function to handle rate limiting
-        const batchPromises = batch.map(tx => 
+
+        const batchPromises = batch.map(tx =>
           withRetry(() => getTransactionDetails(tx.signature), {
             maxRetries: 2,
             initialDelayMs: 500,
             maxDelayMs: 5000,
             backoffFactor: 2,
-          }, false) // Not priority
+          }, false)
         );
-        
+
         try {
           const batchResults = await Promise.all(batchPromises);
+          if (controller.signal.aborted || isCancelledRef.current) break;
           const validBatchResults = batchResults.filter(tx => tx !== null) as EnrichedTransaction[];
           processedTransactions = [...processedTransactions, ...validBatchResults];
-          
+
           setTransactions([...processedTransactions]);
-          
-          toast.info(`Processed ${Math.min(i + batchSize, txList.length)} of ${txList.length} transactions`, {
-            id: 'transaction-progress',
-            duration: 2000,
-          });
-          
-          // If we've processed at least 10 transactions, detect anomalies with what we have
+
           if (processedTransactions.length >= 10) {
             const intermediateAnomalies = detectAnomalies(processedTransactions);
             setAnomalies(intermediateAnomalies);
           }
         } catch (batchError) {
+          if (controller.signal.aborted || isCancelledRef.current) break;
           console.error('Error processing transaction batch:', batchError);
         }
-        
-        // Small delay between batches to avoid rate limiting
+
+        if (controller.signal.aborted || isCancelledRef.current) break;
         if (i + batchSize < txList.length) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
-      
+
+      if (controller.signal.aborted || isCancelledRef.current) {
+        setIsLoadingTransactions(false);
+        return;
+      }
+
       const validTransactions = processedTransactions;
       setTransactions(validTransactions);
-      
+
       const detectedAnomalies = detectAnomalies(validTransactions);
       setAnomalies(detectedAnomalies);
-      
+
       if (validTransactions.length === 0) {
         toast('No transactions found for this address.', {
           description: 'Try a different address or check your input.',
           icon: <AlertTriangle className="h-4 w-4" />,
         });
       } else {
-        const oldestTx = validTransactions.reduce((oldest, tx) => 
+        const oldestTx = validTransactions.reduce((oldest, tx) =>
           (tx.blockTime && oldest.blockTime && tx.blockTime < oldest.blockTime) ? tx : oldest,
           validTransactions[0]
         );
-        
         const oldestDate = oldestTx.blockTime ? new Date(oldestTx.blockTime * 1000).toLocaleDateString() : 'unknown';
         const balance = walletBalance !== null ? walletBalance.toFixed(4) : 'unknown';
-        
+
         toast.success(`Found ${validTransactions.length} transactions`, {
           description: `${detectedAnomalies.length} anomalies detected. Balance: ${balance} SOL`,
         });
       }
     } catch (error) {
+      if (controller.signal.aborted || isCancelledRef.current) {
+        setIsLoadingTransactions(false);
+        setAnalysisInProgress(false);
+        return;
+      }
       console.error('Failed to fetch transaction history:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Unknown error connecting to Solana network';
-      
+
       toast.error('Transaction fetch error', {
         description: errorMessage,
       });
     } finally {
       setIsLoadingTransactions(false);
       setAnalysisInProgress(false);
+      setAbortController(null);
     }
   };
 
   const handleSearch = async (input: string, fetchBalanceOnly: boolean = false) => {
     if (!input) return;
-    
+
+    handleCancelSearch();
+    isCancelledRef.current = false;
+
+    const controller = new AbortController();
+    setAbortController(controller);
+
     if (input.startsWith('0x')) {
       toast.error('Invalid Solana format', {
         description: 'You entered an Ethereum-style address. Solana addresses do not start with "0x".',
@@ -158,26 +193,29 @@ const Index = () => {
       setError('You entered an Ethereum-style address. Solana addresses do not start with "0x". Try our sample address instead.');
       return;
     }
-    
+
     setSearchInput(input);
     setIsLoading(true);
-    
+
     if (!fetchBalanceOnly) {
       setTransactions([]);
       setAnomalies([]);
       setError(null);
       setWalletBalance(null);
     }
-    
+
     try {
       localStorage.setItem('lastSearchInput', input);
-      
+
       const isTransaction = input.length >= 86 && input.length <= 90;
       setIsWalletAddress(!isTransaction);
-      
+
       if (isTransaction) {
         const txDetails = await getTransactionDetails(input);
-        
+        if (controller.signal.aborted || isCancelledRef.current) {
+          setIsLoading(false);
+          return;
+        }
         if (!txDetails) {
           toast.error('Transaction not found', {
             description: 'No transaction found with this signature.',
@@ -186,25 +224,21 @@ const Index = () => {
           setIsLoading(false);
           return;
         }
-        
         setTransactions([txDetails]);
         handleViewDetails(input);
-        
+
         toast.success('Transaction found', {
           description: 'Transaction details retrieved successfully.',
         });
       } else {
-        // Get wallet balance first - prioritize this
         try {
-          // If we're only fetching balance, show a loading message
           if (fetchBalanceOnly) {
-            toast.info('Fetching wallet balance...', { 
+            toast.info('Fetching wallet balance...', {
               id: 'fetching-balance',
-              duration: 3000 
+              duration: 3000
             });
           }
-          
-          // Use withRetry with priority flag
+
           const balance = await withRetry(
             () => getWalletBalance(input),
             {
@@ -213,12 +247,17 @@ const Index = () => {
               maxDelayMs: 5000,
               backoffFactor: 1.5,
             },
-            true // Priority request
+            true
           );
-          
+
+          if (controller.signal.aborted || isCancelledRef.current) {
+            setIsLoading(false);
+            return;
+          }
+
           if (typeof balance === 'number') {
             setWalletBalance(balance);
-          
+
             toast.success('Balance retrieved', {
               id: 'fetching-balance',
               description: `Wallet has ${balance.toFixed(4)} SOL`,
@@ -232,16 +271,18 @@ const Index = () => {
               duration: 3000,
             });
           }
-          
-          // If this is just a balance-only request, trigger the full search now
+
           if (fetchBalanceOnly) {
             setIsLoading(false);
-            // Start the full transaction fetch after a small delay
             setAnalysisInProgress(true);
-            setTimeout(() => fetchTransactionHistory(input), 500);
+            setTimeout(() => fetchTransactionHistory(input, controller), 500);
             return;
           }
         } catch (balanceError) {
+          if (controller.signal.aborted || isCancelledRef.current) {
+            setIsLoading(false);
+            return;
+          }
           console.error('Error fetching balance:', balanceError);
           toast.error('Error fetching balance', {
             id: 'fetching-balance',
@@ -249,31 +290,36 @@ const Index = () => {
             duration: 3000,
           });
         }
-        
-        // If not a balance-only request or balance fetch failed, continue with transaction fetch
+
         if (!fetchBalanceOnly) {
-          await fetchTransactionHistory(input);
+          await fetchTransactionHistory(input, controller);
         }
       }
     } catch (error) {
+      if (controller.signal.aborted || isCancelledRef.current) {
+        setIsLoading(false);
+        setAnalysisInProgress(false);
+        setAbortController(null);
+        return;
+      }
       console.error('Failed to fetch data:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Unknown error connecting to Solana network';
-      
       setError(errorMessage);
-      
+
       toast.error('Connection error', {
         description: errorMessage || 'Unable to connect to Solana network. Try our sample address instead.',
       });
     } finally {
       setIsLoading(false);
+      setAbortController(null);
     }
   };
 
   const handleViewDetails = async (signature: string) => {
     setSelectedTransaction(signature);
-    
+
     const tx = transactions.find(t => t.signature === signature);
     if (tx) {
       setTransactionDetails(tx);
@@ -313,7 +359,7 @@ const Index = () => {
             </p>
           </div>
           
-          <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+          <SearchBar onSearch={handleSearch} isLoading={isLoading} onCancel={handleCancelSearch} />
         </div>
       </header>
       

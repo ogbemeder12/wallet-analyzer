@@ -17,7 +17,7 @@ const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {      
     e.preventDefault();
     setIsLoading(true);
     
