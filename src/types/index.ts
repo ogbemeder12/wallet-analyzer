@@ -3,10 +3,56 @@ import { PublicKey } from '@solana/web3.js';
 export interface SolanaTransaction {
   signature: string;
   slot: number;
-  err: any | null;
+  err: Error | null;
   memo: string | null;
   blockTime: number | null;
   confirmationStatus?: 'processed' | 'confirmed' | 'finalized';
+}
+
+export interface RawTransactionData {
+  meta: {
+    err: Error | null;
+    fee: number;
+    preBalances: number[];
+    postBalances: number[];
+    preTokenBalances?: Array<{
+      accountIndex: number;
+      mint: string;
+      owner: string;
+      uiTokenAmount: {
+        amount: string;
+        decimals: number;
+      };
+    }>;
+    postTokenBalances?: Array<{
+      accountIndex: number;
+      mint: string;
+      owner: string;
+      uiTokenAmount: {
+        amount: string;
+        decimals: number;
+      };
+    }>;
+  };
+  transaction: {
+    message: {
+      accountKeys: string[];
+      instructions: Array<{
+        programId: string;
+        parsed?: {
+          type: string;
+          info: {
+            source?: string;
+            destination?: string;
+            from?: string;
+            to?: string;
+            lamports?: number;
+            amount?: number;
+          };
+        };
+      }>;
+    };
+  };
 }
 
 export interface EnrichedTransaction extends SolanaTransaction {
@@ -17,11 +63,17 @@ export interface EnrichedTransaction extends SolanaTransaction {
     amount?: number;
     programId?: string;
     type?: string;
+    rawData?: {
+      tokenTransfers?: Array<{
+        mint: string;
+        amount: number;
+      }>;
+    };
   };
   riskScore?: number;
   tags?: string[];
   isHighRisk?: boolean;
-  rawData?: any; // Add rawData property to store transaction details
+  rawData?: RawTransactionData;
 }
 
 export interface SearchHistoryItem {
@@ -40,19 +92,21 @@ export interface Entity {
 
 export interface AnomalyDetectionResult {
   transactionSignature: string;
-  anomalyType: 'large-amount' | 'unusual-pattern' | 'suspicious-address' | 'high-frequency';
+  anomalyType: string;
   riskScore: number;
   details: string;
+  timestamp: number;
+  amount?: number;
+  programId?: string;
+  sender?: string;
+  receiver?: string;
 }
 
 export interface TransactionPath {
-  id: string;
-  source: string;
-  target: string;
-  amount: number;
-  timestamp: number;
-  riskScore: number;
-  transactions: string[]; // Array of transaction signatures
+  addresses: string[];
+  transactions: string[];
+  significance: number;
+  type: 'PROGRAM_INTERACTION' | 'TOKEN_FLOW' | 'COMPLEX_FLOW' | 'DIRECT_TRANSFER';
 }
 
 export interface TransactionNode {
@@ -105,6 +159,23 @@ export interface WalletFundingAnalysis {
     source?: string;
     isDeposit: boolean;
     transactionSignature: string;
-    rawData?: any; // Add rawData property to timeline data
+    rawData?: RawTransactionData;
   }>;
+}
+
+export type EntityType =
+  | 'UNKNOWN'
+  | 'DEX'
+  | 'NFT_MARKETPLACE'
+  | 'GAMING'
+  | 'DEFI'
+  | 'TOKEN_HOLDER'
+  | 'ACTIVE_TRADER'
+  | 'HIGH_RISK'
+  | 'MEDIUM_RISK';
+
+export interface EntityPattern {
+  type: EntityType;
+  confidence: number;
+  evidence: string[];
 }

@@ -34,12 +34,12 @@ const Index = () => {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const isCancelledRef = useRef(false);
 
-  useEffect(() => {
-    const savedInput = localStorage.getItem('lastSearchInput');
-    if (savedInput) {
-      handleSearch(savedInput);
-    }
-  }, []);
+  // useEffect(() => {
+  //   const savedInput = localStorage.getItem('lastSearchInput');
+  //   if (savedInput) {
+  //     handleSearch(savedInput);
+  //   }
+  // }, []);
 
   const handleCancelSearch = () => {
     isCancelledRef.current = true;
@@ -341,13 +341,13 @@ const Index = () => {
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-[#8B5CF6]/5 blur-3xl pointer-events-none"></div>
         </div>
-        
+
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col items-center justify-center mb-8">
             <div className="flex items-center gap-4 mb-3">
-              <img 
-                src="/lovable-uploads/38239a24-cd46-42d6-a421-87a64a33cfa4.png" 
-                alt="SolanSight Logo" 
+              <img
+                src="/lovable-uploads/38239a24-cd46-42d6-a421-87a64a33cfa4.png"
+                alt="SolanSight Logo"
                 className="h-16 w-16 animate-pulse"
               />
               <h1 className="text-4xl font-bold bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] bg-clip-text text-transparent">
@@ -358,11 +358,11 @@ const Index = () => {
               Track and visualize on-chain transactions, identify entities, and detect suspicious activities on the Solana blockchain.
             </p>
           </div>
-          
+
           <SearchBar onSearch={handleSearch} isLoading={isLoading} onCancel={handleCancelSearch} />
         </div>
       </header>
-      
+
       <main className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
           {searchInput && (
@@ -405,7 +405,7 @@ const Index = () => {
                   </div>
                 </div>
               </div>
-              
+
               {error && (
                 <div className="glass-card p-5 rounded-lg mb-6 border-amber-500/30 border bg-amber-500/5 animate-fade-in">
                   <div className="flex items-center gap-3">
@@ -419,7 +419,7 @@ const Index = () => {
                     <p className="text-sm">
                       Solana public RPC endpoints have rate limits. Try our sample address instead:
                     </p>
-                    <Button 
+                    <Button
                       variant="outline"
                       className="mt-2 text-xs font-mono"
                       onClick={() => handleSearch('GVV4cVPRhUf9wQQRbQu9JwQPQkRtFKrNYGPXgxzk5mUC')}
@@ -429,7 +429,7 @@ const Index = () => {
                   </div>
                 </div>
               )}
-              
+
               {isLoadingTransactions || analysisInProgress ? (
                 <div className="glass-card p-8 rounded-2xl text-center max-w-3xl mx-auto animate-fade-in backdrop-blur-md bg-[#1A1F2C]/50 border border-[#8B5CF6]/20 mb-6">
                   <div className="flex justify-center mb-6">
@@ -444,7 +444,7 @@ const Index = () => {
                   <p className="text-muted-foreground mb-6">
                     Fetching and analyzing transactions in small batches to avoid rate limits. This may take a few moments...
                   </p>
-                  
+
                   {walletBalance !== null && (
                     <div className="bg-[#1A1F2C]/80 p-4 rounded-xl border border-[#8B5CF6]/20 flex flex-col items-center">
                       <Wallet className="h-10 w-10 text-[#8B5CF6] mb-2" />
@@ -460,13 +460,13 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-6">
-                  <TransactionFlow 
-                    transactions={transactions} 
+                  <TransactionFlow
+                    transactions={transactions}
                     expanded={isFlowExpanded}
                     onToggleExpand={() => setIsFlowExpanded(!isFlowExpanded)}
                   />
-                  
-                  {anomalies.length > 0 && (
+
+                  {/* {anomalies.length > 0 && (
                     <div className="glass-card p-5 rounded-2xl backdrop-blur-md bg-[#1A1F2C]/50 border border-amber-500/20 animate-fade-in">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-medium flex items-center gap-2">
@@ -476,7 +476,7 @@ const Index = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {anomalies.slice(0, 3).map((anomaly, index) => (
-                          <div 
+                          <div
                             key={`${anomaly.transactionSignature}-${index}`}
                             className="bg-amber-500/5 border border-amber-500/20 p-3 rounded-md hover:bg-amber-500/10 transition-colors"
                           >
@@ -485,7 +485,7 @@ const Index = () => {
                               <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Risk: {anomaly.riskScore}</span>
                             </div>
                             <p className="text-sm text-muted-foreground">{anomaly.details}</p>
-                            <button 
+                            <button
                               className="text-xs text-amber-400 mt-2 hover:underline flex items-center gap-1"
                               onClick={() => handleViewDetails(anomaly.transactionSignature)}
                             >
@@ -494,11 +494,11 @@ const Index = () => {
                             </button>
                           </div>
                         ))}
-                        
+
                         {anomalies.length > 3 && (
                           <div className="bg-amber-500/5 border border-amber-500/20 p-3 rounded-md flex items-center justify-center">
-                            <Button 
-                              variant="link" 
+                            <Button
+                              variant="link"
                               className="text-amber-400"
                             >
                               View {anomalies.length - 3} more anomalies
@@ -507,8 +507,8 @@ const Index = () => {
                         )}
                       </div>
                     </div>
-                  )}
-                  
+                  )} */}
+
                   <Tabs
                     defaultValue="transactions"
                     value={activeTab}
@@ -543,28 +543,28 @@ const Index = () => {
                         )}
                       </TabsList>
                     </div>
-                    
+
                     <Separator className="my-4 bg-[#8B5CF6]/10" />
-                    
+
                     <div className="p-6 pt-2">
                       <TabsContent value="transactions" className="m-0">
-                        <TransactionList 
-                          transactions={transactions} 
+                        <TransactionList
+                          transactions={transactions}
                           isLoading={isLoading || isLoadingTransactions}
                           onViewDetails={handleViewDetails}
                         />
                       </TabsContent>
-                      
+
                       {isWalletAddress && (
                         <>
                           <TabsContent value="funding" className="m-0">
-                            <WalletFundingPanel 
+                            <WalletFundingPanel
                               walletAddress={searchInput}
                               transactions={transactions}
                               onViewDetails={handleViewDetails}
                             />
                           </TabsContent>
-                          
+
                           <TabsContent value="entities" className="m-0">
                             <EntityAnalysis
                               walletAddress={searchInput}
@@ -573,7 +573,7 @@ const Index = () => {
                               onViewDetails={handleViewDetails}
                             />
                           </TabsContent>
-                          
+
                           <TabsContent value="analytics" className="m-0">
                             <AnalyticsView
                               walletAddress={searchInput}
@@ -582,7 +582,7 @@ const Index = () => {
                               onViewDetails={handleViewDetails}
                             />
                           </TabsContent>
-                          
+
                           <TabsContent value="explorer" className="m-0">
                             <ExplorerView
                               walletAddress={searchInput}
@@ -599,7 +599,7 @@ const Index = () => {
               )}
             </>
           )}
-          
+
           {!searchInput && !isLoading && (
             <div className="glass-card p-8 rounded-2xl text-center max-w-3xl mx-auto animate-fade-in backdrop-blur-md bg-[#1A1F2C]/50 border border-[#8B5CF6]/20">
               <div className="flex justify-center mb-6">
@@ -612,13 +612,13 @@ const Index = () => {
               <p className="text-muted-foreground mb-6">
                 Search for a wallet address or transaction signature to start your investigation.
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div className="bg-[#1A1F2C]/80 p-4 rounded-xl border border-[#8B5CF6]/20 flex flex-col items-center">
                   <Wallet className="h-10 w-10 text-[#8B5CF6] mb-2" />
                   <h3 className="font-medium mb-1">Wallet Analysis</h3>
                   <p className="text-sm text-muted-foreground mb-3">Analyze transaction patterns, funding sources, and detect anomalies</p>
-                  <Button 
+                  <Button
                     onClick={() => handleSearch('GVV4cVPRhUf9wQQRbQu9JwQPQkRtFKrNYGPXgxzk5mUC')}
                     variant="outline"
                     className="w-full border-[#8B5CF6]/20 hover:bg-[#8B5CF6]/10"
@@ -626,12 +626,12 @@ const Index = () => {
                     Try Sample Wallet
                   </Button>
                 </div>
-                
+
                 <div className="bg-[#1A1F2C]/80 p-4 rounded-xl border border-[#8B5CF6]/20 flex flex-col items-center">
                   <BookKey className="h-10 w-10 text-[#D946EF] mb-2" />
                   <h3 className="font-medium mb-1">Transaction Inspection</h3>
                   <p className="text-sm text-muted-foreground mb-3">Examine individual transactions, verify signatures and details</p>
-                  <Button 
+                  <Button
                     variant="outline"
                     className="w-full border-[#8B5CF6]/20 hover:bg-[#8B5CF6]/10"
                     disabled
@@ -640,7 +640,7 @@ const Index = () => {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="text-sm text-muted-foreground p-4 bg-[#1A1F2C]/80 rounded-xl border border-amber-500/20 mt-4 max-w-lg mx-auto flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <span>
@@ -651,7 +651,7 @@ const Index = () => {
           )}
         </div>
       </main>
-      
+
       <Sheet open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
         <SheetContent className="sm:max-w-lg border-l border-[#8B5CF6]/20 bg-[#1A1F2C]/95 backdrop-blur-xl">
           <SheetHeader>
@@ -660,44 +660,44 @@ const Index = () => {
               Transaction Details
             </SheetTitle>
           </SheetHeader>
-          
+
           {transactionDetails ? (
             <div className="py-4 space-y-4">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground">Signature</h3>
                 <p className="font-mono text-sm break-all bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{transactionDetails.signature}</p>
               </div>
-              
+
               <Separator className="bg-[#8B5CF6]/10" />
-              
+
               {transactionDetails.blockTime && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Timestamp</h3>
                   <p className="bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{formatTimestamp(transactionDetails.blockTime)}</p>
                 </div>
               )}
-              
+
               {transactionDetails.slot && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Slot</h3>
                   <p className="bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{transactionDetails.slot.toLocaleString()}</p>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.sender && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">From</h3>
                   <p className="font-mono text-sm break-all bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{transactionDetails.parsedInfo.sender}</p>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.receiver && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">To</h3>
                   <p className="font-mono text-sm break-all bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{transactionDetails.parsedInfo.receiver}</p>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.amount !== undefined && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Amount</h3>
@@ -712,7 +712,7 @@ const Index = () => {
                   </div>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.fee !== undefined && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Fee</h3>
@@ -722,7 +722,7 @@ const Index = () => {
                   </div>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.type && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Transaction Type</h3>
@@ -732,46 +732,44 @@ const Index = () => {
                   </p>
                 </div>
               )}
-              
+
               {transactionDetails.parsedInfo?.programId && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Program ID</h3>
                   <p className="font-mono text-sm break-all bg-[#0F1729]/80 p-2 rounded-md border border-[#8B5CF6]/10">{transactionDetails.parsedInfo.programId}</p>
                 </div>
               )}
-              
+
               {transactionDetails.riskScore !== undefined && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Risk Assessment</h3>
                   <div className="bg-[#0F1729]/80 p-3 rounded-md border border-[#8B5CF6]/10">
                     <div className="bg-[#0F1729] rounded-full h-2 overflow-hidden mb-2">
-                      <div 
-                        className={`h-full ${
-                          transactionDetails.riskScore > 70 ? 'bg-red-500' :
+                      <div
+                        className={`h-full ${transactionDetails.riskScore > 70 ? 'bg-red-500' :
                           transactionDetails.riskScore > 40 ? 'bg-amber-500' :
-                          'bg-green-500'
-                        }`}
+                            'bg-green-500'
+                          }`}
                         style={{ width: `${transactionDetails.riskScore}%` }}
                       ></div>
                     </div>
                     <p className="text-sm text-muted-foreground flex items-center justify-between">
                       <span>Risk Score: {transactionDetails.riskScore}/100</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                        transactionDetails.riskScore > 70 ? 'bg-red-500/20 text-red-300' :
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${transactionDetails.riskScore > 70 ? 'bg-red-500/20 text-red-300' :
                         transactionDetails.riskScore > 40 ? 'bg-amber-500/20 text-amber-300' :
-                        'bg-green-500/20 text-green-300'
-                      }`}>
-                        {transactionDetails.riskScore > 70 ? 'High Risk' : 
-                        transactionDetails.riskScore > 40 ? 'Medium Risk' : 'Low Risk'}
+                          'bg-green-500/20 text-green-300'
+                        }`}>
+                        {transactionDetails.riskScore > 70 ? 'High Risk' :
+                          transactionDetails.riskScore > 40 ? 'Medium Risk' : 'Low Risk'}
                       </span>
                     </p>
                   </div>
                 </div>
               )}
-              
+
               <div className="pt-4">
-                <Button 
-                  className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] hover:opacity-90 text-white" 
+                <Button
+                  className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] hover:opacity-90 text-white"
                   onClick={() => window.open(`https://explorer.solana.com/tx/${transactionDetails.signature}`, '_blank')}
                 >
                   View on Solana Explorer

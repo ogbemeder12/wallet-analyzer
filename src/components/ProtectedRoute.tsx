@@ -1,16 +1,16 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useUser } from '@civic/auth/react';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
 };
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, session } = useAuth();
+  const { user } = useUser();
 
-  if (!user || !session) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
